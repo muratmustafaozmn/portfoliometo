@@ -7,20 +7,20 @@
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://unpkg.com/ogl"></script>
     <style>
-        body { margin: 0; padding: 0; background-color: #000; overflow-x: hidden; }
-        #root { min-height: 100vh; }
+        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@400;500&display=swap');
+        body { margin: 0; background: #000; color: #fff; overflow-x: hidden; font-family: 'DM Sans', sans-serif; }
+        * { box-sizing: border-box; }
+        a { text-decoration: none; color: inherit; }
     </style>
 </head>
 <body>
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useEffect, useRef, useState } = React;
-        const { Mesh, Program, Renderer, Triangle, Vec3 } = ogl;
+        const { useEffect, useRef } = React;
 
-        // SENİN PORTFOLIO.JSX KODUN BURADA BAŞLIYOR
+        // --- ORB BİLEŞENİ (portfolio.jsx'ten alındı) ---
         function OrbCanvas({ hue = 0, hoverIntensity = 0.5, rotateOnHover = true }) {
           const containerRef = useRef(null);
           useEffect(() => {
@@ -30,8 +30,7 @@
             canvas.style.cssText = "position:absolute;top:0;left:0;width:100%;height:100%;";
             container.appendChild(canvas);
             const gl = canvas.getContext("webgl", { alpha: true, premultipliedAlpha: false });
-            if (!gl) { container.removeChild(canvas); return; }
-            gl.clearColor(0, 0, 0, 0);
+            if (!gl) return;
 
             const vert = `precision highp float; attribute vec2 position; attribute vec2 uv; varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position, 0.0, 1.0); }`;
             const frag = `precision highp float; uniform float iTime; uniform vec3 iResolution; uniform float hue; uniform float hover; uniform float rot; uniform float hoverIntensity; uniform vec3 backgroundColor; varying vec2 vUv;
@@ -39,59 +38,53 @@
             vec3 yiq2rgb(vec3 c){return vec3(c.x+0.956*c.y+0.621*c.z,c.x-0.272*c.y-0.647*c.z,c.x-1.106*c.y+1.703*c.z);}
             vec3 adjustHue(vec3 color,float hueDeg){ float hueRad=hueDeg*3.14159265/180.0; vec3 yiq=rgb2yiq(color); float cosA=cos(hueRad),sinA=sin(hueRad); return yiq2rgb(vec3(yiq.x,yiq.y*cosA-yiq.z*sinA,yiq.y*sinA+yiq.z*cosA)); }
             vec3 hash33(vec3 p3){ p3=fract(p3*vec3(0.1031,0.11369,0.13787)); p3+=dot(p3,p3.yxz+19.19); return -1.0+2.0*fract(vec3(p3.x+p3.y,p3.x+p3.z,p3.y+p3.z)*p3.zyx); }
-            float snoise3(vec3 p){ const float K1=0.333333333,K2=0.166666667; vec3 i=floor(p+(p.x+p.y+p.z)*K1); vec3 d0=p-(i-(i.x+i.y+i.z)*K2); vec3 e=step(vec3(0.0),d0-d0.yzx); vec3 i1=e*(1.0-e.zxy),i2=1.0-e.zxy*(1.0-e); vec4 h=max(0.6-vec4(dot(d0,d0),dot(d0-(i1-K2),d0-(i1-K2)),dot(d0-(i2-K1),d0-(i2-K1)),dot(d0-0.5,d0-0.5)),0.0); return dot(vec4(31.316), h*h*h*h*vec4(dot(d0,hash33(i)),dot(d0-(i1-K2),hash33(i+i1)),dot(d0-(i2-K1),hash33(i+i2)),dot(d0-0.5,hash33(i+1.0)))); }
+            float snoise3(vec3 p){ const float K1=0.333333333,K2=0.166666667; vec3 i=floor(p+(p.x+p.y+p.z)*K1); vec3 d0=p-(i-(i.x+i.y+i.z)*K2); vec3 e=step(vec3(0.0),d0-d0.yzx); vec4 h=max(0.6-vec4(dot(d0,d0),dot(d0-(e*(1.0-e.zxy)-K2),d0-(e*(1.0-e.zxy)-K2)),dot(d0-(1.0-e.zxy*(1.0-e)-K1),d0-(1.0-e.zxy*(1.0-e)-K1)),dot(d0-0.5,d0-0.5)),0.0); return dot(vec4(31.316), h*h*h*h); }
             vec4 extractAlpha(vec3 c){float a=max(max(c.r,c.g),c.b);return vec4(c/(a+1e-5),a);}
-            vec4 draw(vec2 uv){
-              vec3 c1=adjustHue(vec3(0.61,0.26,0.99),hue), c2=adjustHue(vec3(0.29,0.76,0.91),hue), c3=adjustHue(vec3(0.06,0.07,0.6),hue);
-              float n0=snoise3(vec3(uv*0.65,iTime*0.5))*0.5+0.5; float r0=mix(0.64,0.84,n0); float d0=distance(uv,(r0/length(uv))*uv);
-              float v0=1.0/(1.0+d0*10.0)*smoothstep(r0*1.05,r0,length(uv));
-              return extractAlpha(mix(vec3(0), mix(c1,c2,cos(atan(uv.y,uv.x)+iTime*2.0)*0.5+0.5), v0));
-            }
             void main(){
               vec2 uv=(vUv*iResolution.xy-iResolution.xy*0.5)/min(iResolution.x,iResolution.y)*2.0;
               float s=sin(rot),c=cos(rot); uv=vec2(c*uv.x-s*uv.y,s*uv.x+c*uv.y);
               uv.x+=hover*hoverIntensity*0.1*sin(uv.y*10.0+iTime); uv.y+=hover*hoverIntensity*0.1*sin(uv.x*10.0+iTime);
-              gl_FragColor=draw(uv);
+              vec3 c1=adjustHue(vec3(0.61,0.26,0.99),hue), c2=adjustHue(vec3(0.29,0.76,0.91),hue);
+              float n0=snoise3(vec3(uv*0.65,iTime*0.5))*0.5+0.5; float r0=mix(0.64,0.84,n0);
+              float d0=distance(uv,(r0/length(uv))*uv); float v0=1.0/(1.0+d0*10.0)*smoothstep(r0*1.05,r0,length(uv));
+              vec3 col=mix(c1,c2,cos(iTime)*0.5+0.5)*v0;
+              gl_FragColor=vec4(col,v0);
             }`;
 
-            const vs = gl.createShader(gl.VERTEX_SHADER); gl.shaderSource(vs, vert); gl.compileShader(vs);
-            const fs = gl.createShader(gl.FRAGMENT_SHADER, frag); gl.shaderSource(fs, frag); gl.compileShader(fs);
-            const prog = gl.createProgram(); gl.attachShader(prog, vs); gl.attachShader(prog, fs); gl.linkProgram(prog); gl.useProgram(prog);
-            
-            const posBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, posBuf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,3,-1,-1,3]), gl.STATIC_DRAW);
-            const posLoc = gl.getAttribLocation(prog, "position"); gl.enableVertexAttribArray(posLoc); gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
-            
-            const uTime = gl.getUniformLocation(prog, "iTime"), uRes = gl.getUniformLocation(prog, "iResolution"), uHue = gl.getUniformLocation(prog, "hue"), uHov = gl.getUniformLocation(prog, "hover"), uRot = gl.getUniformLocation(prog, "rot"), uHI = gl.getUniformLocation(prog, "hoverIntensity");
+            const vs=gl.createShader(gl.VERTEX_SHADER); gl.shaderSource(vs,vert); gl.compileShader(vs);
+            const fs=gl.createShader(gl.FRAGMENT_SHADER,frag); gl.shaderSource(fs,frag); gl.compileShader(fs);
+            const prog=gl.createProgram(); gl.attachShader(prog,vs); gl.attachShader(prog,fs); gl.linkProgram(prog); gl.useProgram(prog);
+            const posBuf=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,posBuf); gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
+            const posLoc=gl.getAttribLocation(prog,"position"); gl.enableVertexAttribArray(posLoc); gl.vertexAttribPointer(posLoc,2,gl.FLOAT,false,0,0);
+            const uTime=gl.getUniformLocation(prog,"iTime"), uRes=gl.getUniformLocation(prog,"iResolution"), uHov=gl.getUniformLocation(prog,"hover"), uRot=gl.getUniformLocation(prog,"rot");
 
-            function resize() { canvas.width = container.clientWidth * devicePixelRatio; canvas.height = container.clientHeight * devicePixelRatio; gl.viewport(0,0,canvas.width,canvas.height); }
-            window.addEventListener("resize", resize); resize();
-
-            let targetHover = 0, currHover = 0, currRot = 0, lastT = 0;
             function frame(t) {
-              currHover += (targetHover - currHover) * 0.1;
-              if (rotateOnHover && currHover > 0.1) currRot += (t - lastT) * 0.0003;
-              lastT = t;
-              gl.uniform1f(uTime, t*0.001); gl.uniform3f(uRes, canvas.width, canvas.height, canvas.width/canvas.height);
-              gl.uniform1f(uHue, hue); gl.uniform1f(uHov, currHover); gl.uniform1f(uRot, currRot); gl.uniform1f(uHI, hoverIntensity);
-              gl.clear(gl.COLOR_BUFFER_BIT); gl.drawArrays(gl.TRIANGLES, 0, 3);
-              requestAnimationFrame(frame);
+              gl.uniform1f(uTime,t*0.001); gl.uniform3f(uRes,canvas.width,canvas.height,1.0);
+              gl.clear(gl.COLOR_BUFFER_BIT); gl.drawArrays(gl.TRIANGLES,0,3); requestAnimationFrame(frame);
             }
-            requestAnimationFrame(frame);
-            container.onmousemove = e => { const r = container.getBoundingClientRect(); const x=(e.clientX-r.left)/r.width*2-1, y=(e.clientY-r.top)/r.height*2-1; targetHover=Math.sqrt(x*x+y*y)<0.8?1:0; };
-            container.onmouseleave = () => targetHover=0;
+            const resize=()=> { canvas.width=container.clientWidth; canvas.height=container.clientHeight; gl.viewport(0,0,canvas.width,canvas.height); };
+            window.onresize=resize; resize(); requestAnimationFrame(frame);
           }, []);
           return <div ref={containerRef} style={{ position: "absolute", inset: 0 }} />;
         }
 
+        // --- PORTFOLYO SAYFASI ---
         function Portfolio() {
           return (
-            <div style={{ color: "#fff", fontFamily: "sans-serif", textAlign: "center" }}>
-              <section style={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
-                <div style={{ position: "relative", width: "min(600px, 90vw)", height: "min(600px, 90vw)" }}>
+            <div style={{ minHeight: '100vh', position: 'relative' }}>
+              <nav style={{ position: 'fixed', width: '100%', padding: '20px 50px', display: 'flex', justifyContent: 'space-between', zIndex: 10 }}>
+                <span style={{ fontWeight: 800, fontFamily: 'Syne' }}>MMÖ</span>
+                <div style={{ display: 'flex', gap: '20px', fontSize: '14px', opacity: 0.7 }}>
+                  <a href="#about">About</a><a href="#experience">Experience</a>
+                </div>
+              </nav>
+
+              <section style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ position: 'relative', width: 'min(600px, 90vw)', height: 'min(600px, 90vw)' }}>
                   <OrbCanvas />
-                  <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", justifyContent: "center", pointerEvents: "none" }}>
-                    <h1 style={{ fontSize: "2.5rem", margin: 0 }}>Melisa Meltem Özmen</h1>
-                    <p style={{ opacity: 0.8 }}>Statistics Student | Prospective Data Scientist</p>
+                  <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', pointerEvents: 'none', textAlign: 'center' }}>
+                    <h1 style={{ fontFamily: 'Syne', fontSize: 'clamp(2rem, 5vw, 3.5rem)', margin: 0 }}>Melisa Meltem Özmen</h1>
+                    <p style={{ opacity: 0.8, marginTop: '10px' }}>Statistics Student | Prospective Data Scientist</p>
                   </div>
                 </div>
               </section>
